@@ -53,6 +53,7 @@ static unsigned char *g_vbuf;        /* /dev/mem mapping of it (uncached) */
 static IN_UNF_CIPHER_CTRL g_ctrl[MAX_HANDLES];
 static unsigned char g_ctrl_set[MAX_HANDLES];
 static int g_des_fd = -1;
+static int g_handles;                /* live handles, like the vendor's handle count */
 static void *g_cipher_buf;
 static int g_cipher_buf_len;
 
@@ -102,14 +103,19 @@ EXPORT int SU_CIPHER_DES_Test(void)
 
 EXPORT int SU_CIPHER_CreateHandle(void)
 {
-	if (g_aes_fd < 0) return UNINIT;
+	/* vendor 1.0.5 (T30): no initialised device -> FAILED_GETHANDLE, not UNINIT */
+	if (g_aes_fd < 0) return FAILED_GETHANDLE;
 	int fd = dup(g_aes_fd);
-	return (fd < 0) ? FAILED_GETHANDLE : fd;
+	if (fd < 0) return FAILED_GETHANDLE;
+	g_handles++;
+	return fd;
 }
 
 EXPORT int SU_CIPHER_DestroyHandle(int fd)
 {
-	if (fd < 0) return FAILED_DESHANDLE;
+	/* vendor 1.0.5 (T30): destroying with no live handle -> FAILED_DESHANDLE */
+	if (fd < 0 || g_handles <= 0) return FAILED_DESHANDLE;
+	g_handles--;
 	if (fd < MAX_HANDLES) g_ctrl_set[fd] = 0;
 	close(fd);
 	return 0;
