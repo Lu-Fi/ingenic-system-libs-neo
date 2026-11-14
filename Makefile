@@ -39,22 +39,28 @@ libsysutils.a: $(SYSUTILS_OBJ)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+SAN ?= -fsanitize=address,undefined
 TEST_WRAP := -Wl,--wrap=open,--wrap=close,--wrap=ioctl,--wrap=kill,--wrap=sync
 
 # Host-only unit test: wraps open/ioctl/kill so no device is touched.
-test: tests/test_su_base
+test: tests/test_su_base tests/test_su_cipher
 	./tests/test_su_base
+	./tests/test_su_cipher
 
 tests/test_su_base: tests/test_su_base.c libsysutils/su_base.c
 	$(CC) -std=c11 -O1 -D_GNU_SOURCE -Wall -Wextra -I$(CURDIR)/include \
-		-fsanitize=address,undefined $(TEST_WRAP) -o $@ $^ -lpthread
+		$(SAN) $(TEST_WRAP) -o $@ $^ -lpthread
+
+tests/test_su_cipher: tests/test_su_cipher.c libsysutils/su_cipher.c
+	$(CC) -std=c11 -O1 -D_GNU_SOURCE -Wall -Wextra -I$(CURDIR)/include \
+		$(SAN) -Wl,--wrap=open -o $@ $^ -lpthread
 
 strip: all
 	$(STRIP) --strip-unneeded libalog.so libsysutils.so
 
 clean:
 	rm -f $(ALOG_OBJ) $(SYSUTILS_OBJ) libalog.so libalog.a libsysutils.so libsysutils.a
-	rm -f tests/test_su_base
+	rm -f tests/test_su_base tests/test_su_cipher
 
 install: install-staging install-target
 
