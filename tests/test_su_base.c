@@ -74,6 +74,9 @@ int main(void)
 	CHECK(last_req == _IOW('R', 0x09, int));
 	CHECK(last_reg[0] == 0 && last_reg[1] == 0x20 && last_reg[2] == 1);
 
+	/* vendor T33 2.0.2.1 0x1d14: no /sys/power/wakeup_count -> 1 */
+	CHECK(SU_Base_GetWakeupCount() == 1);
+
 	SU_Base_Shutdown();
 	CHECK(last_sig == SIGUSR2);
 	SU_Base_Reboot();

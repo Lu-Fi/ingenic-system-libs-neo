@@ -1,4 +1,6 @@
+*.a
 *.o
 *.so
-*.a
 tests/test_su_base
+tests/test_su_cipher
+tests/test_su_key
