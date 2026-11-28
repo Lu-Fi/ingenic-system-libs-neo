@@ -40,16 +40,21 @@ libsysutils.a: $(SYSUTILS_OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 SAN ?= -fsanitize=address,undefined
-TEST_WRAP := -Wl,--wrap=open,--wrap=close,--wrap=ioctl,--wrap=kill,--wrap=sync
+TEST_WRAP := -Wl,--wrap=open,--wrap=read,--wrap=close,--wrap=ioctl,--wrap=kill,--wrap=sync
 
 # Host-only unit test: wraps open/ioctl/kill so no device is touched.
-test: tests/test_su_base tests/test_su_cipher
+test: tests/test_su_base tests/test_su_cipher tests/test_su_key
 	./tests/test_su_base
 	./tests/test_su_cipher
+	./tests/test_su_key
 
 tests/test_su_base: tests/test_su_base.c libsysutils/su_base.c
 	$(CC) -std=c11 -O1 -D_GNU_SOURCE -Wall -Wextra -I$(CURDIR)/include \
 		$(SAN) $(TEST_WRAP) -o $@ $^ -lpthread
+
+tests/test_su_key: tests/test_su_key.c libsysutils/su_key.c
+	$(CC) -std=c11 -O1 -D_GNU_SOURCE -Wall -Wextra -I$(CURDIR)/include \
+		$(SAN) -Wl,--wrap=open,--wrap=read,--wrap=write,--wrap=access,--wrap=close -o $@ $^ -lpthread
 
 tests/test_su_cipher: tests/test_su_cipher.c libsysutils/su_cipher.c
 	$(CC) -std=c11 -O1 -D_GNU_SOURCE -Wall -Wextra -I$(CURDIR)/include \
@@ -60,7 +65,7 @@ strip: all
 
 clean:
 	rm -f $(ALOG_OBJ) $(SYSUTILS_OBJ) libalog.so libalog.a libsysutils.so libsysutils.a
-	rm -f tests/test_su_base tests/test_su_cipher
+	rm -f tests/test_su_base tests/test_su_cipher tests/test_su_key
 
 install: install-staging install-target
 

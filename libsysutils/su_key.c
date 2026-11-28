@@ -40,18 +40,27 @@ struct key_entry {
 
 static struct key_entry *g_keys;
 static int g_key_count;
+static int g_keys_loaded;	/* a board may register gpio-keys without keys */
 
 static int load_keys(void)
 {
-	if (g_keys)
+	if (g_keys || g_keys_loaded)
 		return 0;
 
 	char buf[128], path[96];
 	if (gpio_keys_path(path, sizeof(path), "keys") < 0)
 		return -1;
-	if (read_file(path, buf, sizeof(buf)) <= 0)
+	if (read_file(path, buf, sizeof(buf)) < 0)
 		return -1;
 	chomp(buf);
+
+	/* empty "keys" (gpio-keys device without buttons, T33L module): the
+	 * vendor load_globle_keys (T33 2.0.2.1 0x7e20) succeeds with 0 keys */
+	if (buf[0] == '\0') {
+		g_key_count = 0;
+		g_keys_loaded = 1;
+		return 0;
+	}
 
 	int count = 0;
 	for (char *p = buf; *p; ) {
@@ -82,8 +91,10 @@ static int load_keys(void)
 
 static int update_key_sysfs(const char *file, uint16_t want_flag)
 {
+	/* vendor update_enabled_keys (T33 2.0.2.1 0x8364): key count <= 0 ->
+	 * return 0 without touching sysfs (0x83d4 -> 0x8880) */
 	if (g_key_count <= 0)
-		return -1;
+		return 0;
 
 	char list[128];
 	int pos = 0;
